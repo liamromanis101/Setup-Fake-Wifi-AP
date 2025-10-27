@@ -1,0 +1,137 @@
+# 🛜 setup_wifi_ap.py
+
+**`setup_wifi_ap.py`** is a Python automation script for Ubuntu that configures your system as a **Wi-Fi Access Point (AP)** using an existing Wi-Fi adapter and an Ethernet uplink.
+
+It automatically handles:
+
+- ✅ `hostapd` setup (Wi-Fi network configuration)
+- ✅ `dnsmasq` setup (DHCP + DNS for Wi-Fi clients)
+- ✅ `iptables` NAT and packet forwarding
+- ✅ Disabling NetworkManager (to avoid conflicts)
+- ✅ DHCP client setup on the Ethernet uplink
+- ✅ Auto-validation of config files and service status
+
+---
+
+## 🧰 Requirements
+
+- Ubuntu 18.04+ (tested on 20.04–24.04)
+- Root privileges (`sudo`)
+- One Wi-Fi adapter (to act as AP)
+- One Ethernet adapter (Internet uplink)
+- Python 3.6+
+
+The script will automatically install:
+```bash
+hostapd dnsmasq iptables dhclient
+```
+
+---
+
+## ⚙️ Installation
+
+Clone or download the repository:
+```bash
+git clone https://github.com/<yourusername>/setup-wifi-ap.git
+cd setup-wifi-ap
+chmod +x setup_wifi_ap.py
+```
+
+---
+
+## 🚀 Usage
+
+```bash
+sudo python3 setup_wifi_ap.py <WiFi_IFACE> <Ethernet_IFACE> <CIDR_or_DHCP_range> [SSID] [PASS] [CHANNEL]
+```
+
+### Examples
+
+**1️⃣ Typical home AP (simple /24 subnet)**
+```bash
+sudo python3 setup_wifi_ap.py wlan0 eth0 192.168.50.0/24 MyHomeAP MyStrongPass 6
+```
+
+**2️⃣ Larger network (custom CIDR)**
+```bash
+sudo python3 setup_wifi_ap.py wlp0s20f3 eno1 10.10.0.0/20 CorpAP SecurePass123 11
+```
+
+**3️⃣ Explicit DHCP range**
+```bash
+sudo python3 setup_wifi_ap.py wlan0 eth0 192.168.12.10,192.168.12.100 GuestAP password 1
+```
+
+---
+
+## 🧩 What it does
+
+1. **Disables NetworkManager** to prevent Wi-Fi conflicts  
+2. **Brings up the Ethernet adapter** with DHCP (`dhclient`)  
+3. **Generates configuration files:**
+   - `/etc/hostapd/hostapd.conf`
+   - `/etc/dnsmasq.d/ap.conf`
+4. **Configures Wi-Fi static IP** (gateway for clients)  
+5. **Enables IP forwarding** in `/etc/sysctl.conf`  
+6. **Sets up NAT** between Wi-Fi and Ethernet interfaces  
+7. **Starts & enables** `hostapd` and `dnsmasq`  
+8. **Validates and displays** service status  
+
+---
+
+## 🧠 Example Output
+
+```
+[+] Configuring eno1 for DHCP (uplink)
+[+] DHCP request sent successfully on eno1
+[+] dnsmasq syntax check passed
+[+] Configuring NAT wlp0s20f3 -> eno1
+[✅] WiFi Access Point setup complete.
+    SSID: MyHomeAP
+    Gateway: 192.168.50.1  DHCP: 192.168.50.10–192.168.50.210
+    WiFi iface: wlp0s20f3  Ethernet iface: eno1
+```
+
+---
+
+## 🛠️ Troubleshooting
+
+**1️⃣ Clients connect but have no Internet**
+- Ensure Ethernet uplink has a valid IP:
+  ```bash
+  ip a show eth0
+  ```
+  If not, rerun `dhclient eth0`.
+
+**2️⃣ dnsmasq fails to start**
+- Check syntax:
+  ```bash
+  sudo dnsmasq --test
+  ```
+  - If `/etc/dnsmasq.conf` contains `dhcp-range=` lines, comment them out.
+
+**3️⃣ Port 53 conflict**
+- Disable `systemd-resolved`:
+  ```bash
+  sudo systemctl stop systemd-resolved
+  sudo systemctl disable systemd-resolved
+  sudo rm /etc/resolv.conf
+  echo "nameserver 1.1.1.1" | sudo tee /etc/resolv.conf
+  ```
+
+---
+
+## 🧹 Reset / Uninstall
+To restore defaults:
+```bash
+sudo systemctl stop hostapd dnsmasq
+sudo systemctl disable hostapd dnsmasq
+sudo apt remove --purge -y hostapd dnsmasq
+sudo systemctl enable NetworkManager
+sudo systemctl start NetworkManager
+```
+---
+
+## ✨ Credits
+Created by **[Your Name]**  
+Inspired by classic `hostapd` + `dnsmasq` tutorials but designed to be fully automated and idempotent.
